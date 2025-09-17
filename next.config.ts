@@ -5,3 +5,12 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    turbopack: true,
+  },
+}
+
+module.exports = nextConfig
