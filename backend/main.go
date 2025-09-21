@@ -22,7 +22,7 @@ func init() {
 	// Строка подключения к базе данных
 	// Используй правильные значения для пользователя, пароля, базы данных и хоста
 	var err error
-	dsn := "host=localhost user=oracul password=secret dbname=oracul_db port=5432 sslmode=disable"
+	dsn := "host=172.17.0.2 user=oracul password=secret dbname=oracul_db port=5432 sslmode=disable"
 	db, err = gorm.Open("postgres", dsn)
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
