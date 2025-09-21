@@ -1,51 +1,71 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	"log"
-
-	"github.com/jinzhu/gorm"
-	_ "github.com/jinzhu/gorm/dialects/postgres"
+	"net/http"
 )
 
-var db *gorm.DB
-
-// User модель для базы данных
 type User struct {
-	ID       uint   `json:"id"`
 	Username string `json:"username"`
-	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
-func init() {
-	// Строка подключения к базе данных
-	// Используй правильные значения для пользователя, пароля, базы данных и хоста
-	var err error
-	dsn := "host=172.17.0.2 user=oracul password=secret dbname=oracul_db port=5432 sslmode=disable"
-	db, err = gorm.Open("postgres", dsn)
-	if err != nil {
-		log.Fatalf("failed to connect to database: %v", err)
-	}
+var users []User
 
-	// Автоматическая миграция для создания таблицы пользователей
-	if err := db.AutoMigrate(&User{}).Error; err != nil {
-		log.Fatalf("failed to migrate database: %v", err)
+// Валидация пароля (например, минимальная длина)
+func isValidPassword(password string) bool {
+	return len(password) >= 6
+}
+
+// Регистрация пользователя с валидацией
+func registerUser(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost {
+		var user User
+		err := json.NewDecoder(r.Body).Decode(&user)
+		if err != nil {
+			http.Error(w, "Invalid data", http.StatusBadRequest)
+			return
+		}
+
+		// Валидация: проверка, что имя пользователя и пароль не пустые
+		if user.Username == "" || user.Password == "" {
+			http.Error(w, "Username and password are required", http.StatusBadRequest)
+			return
+		}
+
+		// Валидация пароля
+		if !isValidPassword(user.Password) {
+			http.Error(w, "Password must be at least 6 characters long", http.StatusBadRequest)
+			return
+		}
+
+		// Добавляем пользователя в список
+		users = append(users, user)
+
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(user)
+	} else {
+		http.Error(w, "Invalid method", http.StatusMethodNotAllowed)
+	}
+}
+
+// Получение всех пользователей
+func getUsers(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(users)
+	} else {
+		http.Error(w, "Invalid method", http.StatusMethodNotAllowed)
 	}
 }
 
 func main() {
-	// Пример регистрации пользователя
-	user := User{
-		Username: "testuser",
-		Email:    "testuser@example.com",
-		Password: "password123",
-	}
+	http.HandleFunc("/register", registerUser)
+	http.HandleFunc("/users", getUsers)
 
-	// Сохраняем пользователя в базе данных
-	if err := db.Create(&user).Error; err != nil {
-		log.Fatalf("failed to create user: %v", err)
+	fmt.Println("Server is running on http://localhost:8080")
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		fmt.Println("Error starting server:", err)
 	}
-
-	fmt.Println("User registered successfully")
 }
